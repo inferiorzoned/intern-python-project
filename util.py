@@ -11,6 +11,17 @@ api_lists = {
     "tweets": base + "/tweets",
 }
 
+# write a decorator to log the time of the function call
+def timeLog(func):
+    def wrapper(*args, **kwargs):
+        start = time.time()
+        result = func(*args, **kwargs)
+        end = time.time()
+        print(func.__name__, "took", end - start, "seconds")
+        return result
+    return wrapper
+
+@timeLog
 def login(username, password):
     try:
         loginResponse = NetworkRequest.post(api_lists["login"], body =  {"username": username, "password": password})
@@ -69,7 +80,7 @@ class TokenHandler:
         loginResponse = NetworkRequest.post(api_lists["refreshToken"], body =  {"refresh_token": TokenHandler.refresh_token})
         TokenHandler.access_token = loginResponse['body']['access_token']
         TokenHandler.refresh_token = loginResponse['body']['refresh_token']
-        print("Access Token updated\n")
+        print("Access Token updated")
         return TokenHandler.access_token, TokenHandler.refresh_token
 
 
@@ -81,6 +92,7 @@ class TweetHandler():
         self.recentTweets = set(self.getFiveRecentTweets(tokenHandler.access_token))
         self.myTweets = set()
 
+    @timeLog
     def getFiveRecentTweets(self, access_token):
         print("Getting recent tweets")
         API = f'{api_lists["tweets"]}?skip=0&limit=5'
@@ -108,6 +120,7 @@ class TweetHandler():
         return wrapper
 
     @retryWithRefreshToken
+    @timeLog
     def postTweet(self, tweet):
         headers = {'Authorization': f'Bearer {self.tokenHandler.access_token}'}
         return NetworkRequest.post(url=api_lists["tweets"], headers=headers, body={"text": tweet})
@@ -116,7 +129,7 @@ class TweetHandler():
         for _ in range(self.noOfTweets):
             newTweet = next(self.generateTweets())
             self.myTweets.add(newTweet)
-            print(f"posting new tweet: {newTweet}")
+            print(f"\nposting new tweet: {newTweet}")
             self.postTweet(newTweet)
             print("posted, sleeping 1 minute")
             time.sleep(60)
